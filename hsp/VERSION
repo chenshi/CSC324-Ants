@@ -1,0 +1,9 @@
+This starter package zip was published on Sun Nov  6 05:12:33 UTC 2011.
+
+Last change on this starter package was:
+commit 021ca49022863cb7bfefd5d14428ecac6b14096a
+Date:   Mon Oct 24 15:52:14 2011 +0400
+
+    updated submodule reference for haskell starter bot package
+
+Check https://github.com/aichallenge/aichallenge/tree/epsilon/ants/dist/starter_bots/haskell for new versions.
