@@ -1,0 +1,7 @@
+src/*.hi
+src/*.o
+src/.DS_Store
+MyBot
+game_logs
+src/*.swp
+
