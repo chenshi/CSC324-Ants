@@ -26,13 +26,18 @@ generateOrders a = map (Order a) [North .. West]
  - GameState holds data that changes between each turn
  - for each see Ants module for more information
  -}
+
+
+
+
 doTurn :: GameParams -> GameState -> IO [Order]
 doTurn gp gs = do
-  let generatedOrders = map generateOrders $ myAnts $ ants gs
-      unoccupiedOrders = mapMaybe (tryOrder (world gs)) generatedOrders
-      gt = updateGameTurn (world gs) (GameTurn {ordersMade = Map.empty}) unoccupiedOrders
+  let shortetsOrders = map snd (sort [(distance gp (point myant) food_loc, [Order {ant = myant, direction = (fst (directions (world gs) (point myant) food_loc))}, Order {ant = myant, direction = (snd (directions (world gs) (point myant) food_loc))}])  | food_loc <- food gs, myant <- myAnts (ants gs)])
+      unoccupiedOrders = mapMaybe (tryOrder (world gs)) shortetsOrders
+      gt = updateGameTurn (world gs) (GameTurn {ordersMade = Map.empty, foodTargets = Map.empty}) unoccupiedOrders
       orders = Map.elems $ ordersMade gt
-    
+
+
   -- this shows how to check the remaining time
   elapsedTime <- timeRemaining gs
   hPutStrLn stderr $ show elapsedTime

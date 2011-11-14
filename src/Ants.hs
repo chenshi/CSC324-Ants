@@ -9,6 +9,7 @@ module Ants
   , Order (..)
   , World
   , OrdersMade
+  , FoodTargets
   , GameTurn (..)
 
     -- Utility functions
@@ -23,7 +24,7 @@ module Ants
   , game
 
   -- TODO implement the following functions according to the starter pack guide
-  --, direction
+  , directions
   ) where
 
 import Data.Array
@@ -44,6 +45,7 @@ type Point = (Row, Col)
 type Food = Point
 type World = Array Point MetaTile
 type OrdersMade = Map Point Order
+type FoodTargets = Map Point Point
 
 colBound :: World -> Col
 colBound = col . snd . bounds
@@ -90,12 +92,12 @@ data MetaTile = MetaTile
   , visible :: Visible
   } deriving (Show)
 
-data Owner = Me | Enemy1 | Enemy2 | Enemy3 deriving (Show,Eq,Bounded,Enum)
+data Owner = Me | Enemy1 | Enemy2 | Enemy3 deriving (Show, Eq, Bounded, Enum, Ord)
 
 data Ant = Ant
   { point :: Point
   , owner :: Owner
-  } deriving (Show)
+  } deriving (Show, Eq, Ord)
 
 data Hill = Hill
   { hillpoint :: Point
@@ -103,7 +105,7 @@ data Hill = Hill
   } deriving (Show)
 
 
-data Direction = North | East | South | West deriving (Bounded, Eq, Enum)
+data Direction = North | East | South | West | Nothing deriving (Bounded, Eq, Enum, Ord)
 
 instance Show Direction where
   show North = "N"
@@ -115,7 +117,7 @@ instance Show Direction where
 data Order = Order
   { ant :: Ant
   , direction :: Direction
-  } deriving (Show)
+  } deriving (Show, Ord, Eq)
 
 data GameState = GameState
   { world :: World
@@ -138,8 +140,10 @@ data GameParams = GameParams
   } deriving (Show)
 
 data GameTurn = GameTurn
-    { ordersMade :: OrdersMade
+    { ordersMade :: OrdersMade,
+      foodTargets :: FoodTargets
     } deriving (Show)
+
 --------------- Tile functions -------------------
 isAnt :: Tile -> Bool
 isAnt t = any (==t) [MyAnt .. Enemy3Ant]
@@ -200,6 +204,7 @@ euclidSquare bound p1 p2 =
       cold = modDistance (col bound + 1) (col p1) (col p2)
   in (rowd ^ 2) + (cold ^ 2)
 
+-- calculate the closest distance between to locations
 distance :: GameParams -> Point -> Point -> Int
 distance gp l1 l2 =
   let maxRow = rows gp - 1
@@ -207,6 +212,27 @@ distance gp l1 l2 =
       rowDist = modDistance maxRow (row l1) (row l2)
       colDist = modDistance maxCol (col l1) (col l2)
   in rowDist + colDist
+
+-- determine the 1 or 2 fastest (closest) directions to reach a location
+directions :: World -> Point -> Point -> (Direction, Direction)
+directions world source dest
+  | x1 == x2 = (Ants.Nothing, ydir)
+  | y1 == y2 = (xdir, Ants.Nothing)
+  | otherwise = (xdir, ydir)
+  where rn = rowBound world
+        cn = colBound world
+        x1 = row source
+        x2 = row dest
+        xdir = if (abs $ x1 - x2) <= (rn `div` 2)
+                then if x1 >= x2 then North else South
+                else if x1 >= x2 then South else North
+        y1 = col source
+        y2 = col dest
+        ydir = if (abs $ y1 - y2) <= (cn `div` 2)
+                 then if y1 >= y2 then West else East
+                 else if y1 >= y2 then East else West
+
+
 
 isMe :: Ant -> Bool
 isMe a = owner a == Me
@@ -222,6 +248,7 @@ enemyAnts = filter isEnemy
 
 move :: Direction -> Point -> Point
 move dir p
+  | dir == Ants.Nothing = p
   | dir == North = (row p - 1, col p)
   | dir == South = (row p + 1, col p)
   | dir == West  = (row p, col p - 1)
@@ -229,16 +256,23 @@ move dir p
 
 passable :: World -> Order -> Bool
 passable w order =
-  let newPoint = move (direction order) (point $ ant order)
-  in  tile (w %! newPoint) `elem` [Land, Dead]
+  if (direction order) /= Ants.Nothing
+  then
+    let newPoint = move (direction order) (point $ ant order)
+    in  tile (w %! newPoint) `elem` [Land, Dead]
+  else False
+
 
 unoccupied :: World -> GameTurn -> Order -> GameTurn
 unoccupied w gt order =
-    let newPoint = move (direction order) (point ( ant order))
-        newOrders = if Map.notMember newPoint (ordersMade gt)
+    let newPoint = move (direction order) (point (ant order))
+        newOrders = if Map.notMember newPoint (ordersMade gt) && Map.notMember newPoint (foodTargets gt) && (point (ant order)) `notElem` (Map.elems (foodTargets gt))
                       then Map.insert newPoint order (ordersMade gt)
                       else ordersMade gt
-    in GameTurn { ordersMade = newOrders }
+        newFoodTargets = if Map.notMember newPoint (foodTargets gt) && (point (ant order)) `notElem` (Map.elems (foodTargets gt))
+                           then Map.insert newPoint (point (ant order)) (foodTargets gt)
+                           else foodTargets gt
+    in GameTurn { ordersMade = newOrders, foodTargets = newFoodTargets }
 
 issueOrder :: Order -> IO ()
 issueOrder order = do
