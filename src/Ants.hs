@@ -7,6 +7,7 @@ module Ants
   , GameParams (..)
   , GameState (..)
   , Order (..)
+  , Hill (..)
   , World
   , OrdersMade
   , FoodTargets
@@ -246,6 +247,13 @@ isEnemy = not . isMe
 enemyAnts :: [Ant] -> [Ant]
 enemyAnts = filter isEnemy
 
+isMyHill :: Hill -> Bool
+isMyHill h = hillowner h == Me
+
+myHills :: [Hill] -> [Hill]
+myHills = filter isMyHill
+
+
 move :: Direction -> Point -> Point
 move dir p
   | dir == Ants.Nothing = p
@@ -266,10 +274,11 @@ passable w order =
 unoccupied :: World -> GameTurn -> Order -> GameTurn
 unoccupied w gt order =
     let newPoint = move (direction order) (point (ant order))
-        newOrders = if Map.notMember newPoint (ordersMade gt) && Map.notMember newPoint (foodTargets gt) && (point (ant order)) `notElem` (Map.elems (foodTargets gt))
+        notSentForFood = Map.notMember newPoint (foodTargets gt) && (point (ant order)) `notElem` (Map.elems (foodTargets gt))
+        newOrders = if Map.notMember newPoint (ordersMade gt) && notSentForFood
                       then Map.insert newPoint order (ordersMade gt)
                       else ordersMade gt
-        newFoodTargets = if Map.notMember newPoint (foodTargets gt) && (point (ant order)) `notElem` (Map.elems (foodTargets gt))
+        newFoodTargets = if notSentForFood
                            then Map.insert newPoint (point (ant order)) (foodTargets gt)
                            else foodTargets gt
     in GameTurn { ordersMade = newOrders, foodTargets = newFoodTargets }
