@@ -27,23 +27,30 @@ generateOrders a = map (Order a) [North .. West]
  - for each see Ants module for more information
  -}
 
-
-
-
 doTurn :: GameParams -> GameState -> IO [Order]
 doTurn gp gs = do
-  let shortetsOrders = map snd (sort [(distance gp (point myant) food_loc, [Order {ant = myant, direction = (fst (directions (world gs) (point myant) food_loc))}, Order {ant = myant, direction = (snd (directions (world gs) (point myant) food_loc))}])  | food_loc <- food gs, myant <- myAnts (ants gs)])
-      unoccupiedOrders = mapMaybe (tryOrder (world gs)) shortetsOrders
-      gt = updateGameTurn (world gs) (GameTurn {ordersMade = Map.empty, foodTargets = Map.empty}) unoccupiedOrders
+  let --Food gathering
+      shortetsFoodOrders = map snd (sort [(distance gp (point myant) food_loc,
+                                      [Order {ant = myant, direction = (fst (directions (world gs) (point myant) food_loc))},
+                                       Order {ant = myant, direction = (snd (directions (world gs) (point myant) food_loc))}])
+                                     | food_loc <- food gs, myant <- myAnts (ants gs)])
 
-      clearHillsOrders = [[Order{ant = Ant{point =(hillpoint h), owner = Me}, direction = North},
+      unoccupiedOrders = mapMaybe (tryOrder (world gs)) shortetsFoodOrders
+      food_gt = updateGameTurn (world gs) (GameTurn {ordersMade = Map.empty, foodTargets = Map.empty}) unoccupiedOrders
+
+      --Exploring the map
+
+      --Unblocking hills
+      hillOrders = [[Order{ant = Ant{point =(hillpoint h), owner = Me}, direction = North},
                            Order{ant = Ant{point =(hillpoint h), owner = Me}, direction = South},
                            Order{ant = Ant{point =(hillpoint h), owner = Me}, direction = West},
                            Order{ant = Ant{point =(hillpoint h), owner = Me}, direction = East}] | h <- (hills gs)]
 
-      unoccupiedClearHillsOrders = mapMaybe (tryOrder (world gs)) clearHillsOrders
-      newgt = updateGameTurn (world gs) gt unoccupiedClearHillsOrders
-      orders = Map.elems $ ordersMade newgt
+      unoccupyHillsOrders = mapMaybe (tryOrder (world gs)) hillOrders
+      hill_gt = updateGameTurn (world gs) food_gt unoccupyHillsOrders
+
+      --Get final orders that will be returned
+      orders = Map.elems $ ordersMade hill_gt
 
 
   -- this shows how to check the remaining time

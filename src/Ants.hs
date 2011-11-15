@@ -125,6 +125,7 @@ data GameState = GameState
   , ants :: [Ant]
   , food :: [Food] -- call "food GameState" to return food list
   , hills :: [Hill]
+  , unseen :: [Point]
   , startTime :: UTCTime
   }
 
@@ -281,7 +282,7 @@ unoccupied w gt order =
         newFoodTargets = if notSentForFood
                            then Map.insert newPoint (point (ant order)) (foodTargets gt)
                            else foodTargets gt
-    in GameTurn { ordersMade = newOrders, foodTargets = newFoodTargets }
+    in GameTurn {ordersMade = newOrders, foodTargets = newFoodTargets}
 
 issueOrder :: Order -> IO ()
 issueOrder order = do
@@ -322,7 +323,7 @@ addFood :: GameState -> Point -> GameState
 addFood gs loc =
   let newFood = loc:food gs
       newWorld = world gs // [(loc, MetaTile {tile = Food, visible = True})]
-  in GameState {world = newWorld, ants = ants gs, hills = hills gs, food = newFood, startTime = startTime gs}
+  in GameState {world = newWorld, ants = ants gs, hills = hills gs, food = newFood, unseen = unseen gs, startTime = startTime gs}
 
 
 sumPoint :: Point -> Point -> Point
@@ -345,7 +346,7 @@ addAnt gp gs p own =
                     then addVisible (world gs) (viewPoints gp) p
                     else world gs
       newWorld  = newWorld' // [(p, MetaTile {tile = ownerToAnt own, visible = True})]
-  in GameState {world = newWorld, ants = newAnts, food = food gs, hills = hills gs, startTime = startTime gs}
+  in GameState {world = newWorld, ants = newAnts, food = food gs, hills = hills gs, unseen = unseen gs, startTime = startTime gs}
 
 addDead :: GameParams -> GameState -> Point -> Owner -> GameState
 addDead gp gs p own =
@@ -353,13 +354,13 @@ addDead gp gs p own =
                     then addVisible (world gs) (viewPoints gp) p
                     else world gs
       newWorld = newWorld' // [(p, MetaTile {tile = Dead, visible = True})]
-  in GameState {world = newWorld, ants = ants gs, hills = hills gs, food = food gs, startTime = startTime gs}
+  in GameState {world = newWorld, ants = ants gs, hills = hills gs, food = food gs, unseen = unseen gs, startTime = startTime gs}
 
 addHill :: GameState -> Point -> Owner-> GameState
 addHill gs p own =
    let newHills  = Hill {hillpoint = p, hillowner = own}:hills gs
        newWorld  = world gs // [(p, MetaTile {tile = ownerToHill own, visible = True})]
-  in GameState {world = newWorld, ants = ants gs, food = food gs, hills = newHills, startTime = startTime gs}
+  in GameState {world = newWorld, ants = ants gs, food = food gs, unseen = unseen gs, hills = newHills, startTime = startTime gs}
 
 
 
@@ -367,12 +368,12 @@ addHill gs p own =
 addWorldTile :: GameState -> Tile -> Point -> GameState
 addWorldTile gs t p =
   let newWorld = world gs // [(p, MetaTile {tile = t, visible = True})]
-  in GameState {world = newWorld, ants = ants gs, hills = hills gs, food = food gs, startTime = startTime gs}
+  in GameState {world = newWorld, ants = ants gs, hills = hills gs, food = food gs, unseen = unseen gs, startTime = startTime gs}
 
 initialGameState :: GameParams -> UTCTime -> GameState
 initialGameState gp time =
   let w = listArray ((0,0), (rows gp - 1, cols gp - 1)) (repeat MetaTile {tile = Unknown, visible = False})
-  in GameState {world = w, ants = [], food = [], hills = [], startTime = time}
+  in GameState {world = w, ants = [], food = [], hills = [], unseen = [(row, col) | row <- [0 .. (rows gp)], col <- [0 .. (cols gp)]], startTime = time}
 
 updateGameState :: GameParams -> GameState -> String -> GameState
 updateGameState gp gs s
@@ -401,6 +402,7 @@ updateGame gp gs = do
                            , ants = ants gs
                            , food = food gs
                            , hills = hills gs
+                           , unseen = unseen gs
                            , startTime = currentTime
                            }
       | otherwise = updateGame gp $ updateGameState gp gs line
@@ -428,7 +430,7 @@ clearMetaTile m
 -- Clears ants and food and sets tiles to invisible
 cleanState :: GameState -> GameState
 cleanState gs =
-  GameState {world = nw, ants = [], food = [], hills = [], startTime = startTime gs}
+  GameState {world = nw, ants = [], food = [], hills = [], unseen = unseen gs, startTime = startTime gs}
   where
     w = world gs
     invisibles = map clearMetaTile $ elems w
