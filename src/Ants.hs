@@ -284,6 +284,18 @@ unoccupied w gt order =
                            else foodTargets gt
     in GameTurn {ordersMade = newOrders, foodTargets = newFoodTargets}
 
+unoccupiedFood :: World -> GameTurn ->  Order -> GameTurn
+unoccupiedFood w gt order =
+    let newPoint = move (direction order) (point (ant order))
+        notSentForFood = Map.notMember newPoint (foodTargets gt) && (point (ant order)) `notElem` (Map.elems (foodTargets gt))
+        newOrders = if Map.notMember newPoint (ordersMade gt) && notSentForFood
+                      then Map.insert newPoint order (ordersMade gt)
+                      else ordersMade gt
+        newFoodTargets = if notSentForFood
+                           then Map.insert newPoint (point (ant order)) (foodTargets gt)
+                           else foodTargets gt
+    in GameTurn {ordersMade = newOrders, foodTargets = newFoodTargets}
+
 issueOrder :: Order -> IO ()
 issueOrder order = do
   let srow = (show . row . point . ant) order

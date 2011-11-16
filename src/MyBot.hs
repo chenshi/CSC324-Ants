@@ -14,10 +14,6 @@ updateGameTurn :: World -> GameTurn -> [Order] -> GameTurn
 updateGameTurn w gt [] = gt
 updateGameTurn w gt orders = updateGameTurn w (unoccupied w gt (head orders)) (tail orders)
 
--- | Generates orders for an Ant in all directions
-generateOrders :: Ant -> [Order]
-generateOrders a = map (Order a) [North .. West]
-
 {- |
  - Implement this function to create orders.
  - It uses the IO Monad so algorithms can call timeRemaining.
@@ -29,29 +25,33 @@ generateOrders a = map (Order a) [North .. West]
 
 doTurn :: GameParams -> GameState -> IO [Order]
 doTurn gp gs = do
-  let --Food gathering
-      shortetsFoodOrders = map snd (sort [(distance gp (point myant) food_loc,
-                                      [Order {ant = myant, direction = (fst (directions (world gs) (point myant) food_loc))},
-                                       Order {ant = myant, direction = (snd (directions (world gs) (point myant) food_loc))}])
-                                     | food_loc <- food gs, myant <- myAnts (ants gs)])
+  let --Food gathering.
+      shortetsFoodOrders = map snd (sort [( distance gp (point myant) food_loc,
+                                   (food_loc,
+                                    tryOrder (world gs) [Order {ant = myant,
+                                                                direction = (fst (directions (world gs) (point myant) food_loc))},
+                                                         Order {ant = myant,
+                                                                direction = (snd (directions (world gs) (point myant) food_loc))}
+                                                         ]
+                                   )
+                                 ) | food_loc <- food gs, myant <- myAnts (ants gs)])
 
-      unoccupiedOrders = mapMaybe (tryOrder (world gs)) shortetsFoodOrders
-      food_gt = updateGameTurn (world gs) (GameTurn {ordersMade = Map.empty, foodTargets = Map.empty}) unoccupiedOrders
+     -- foodlocations = map (fst . snd) shortetsFoodOrders
+     -- unoccupiedOrders = mapMaybe (tryOrder (world gs)) ( shortetsFoodOrders !! 2)
+      food_gt = updateGameTurn (world gs) (GameTurn {ordersMade = Map.empty, foodTargets = Map.empty})  (mapMaybe snd shortetsFoodOrders)
 
       --Exploring the map
 
       --Unblocking hills
       hillOrders = [[Order{ant = Ant{point =(hillpoint h), owner = Me}, direction = North},
-                           Order{ant = Ant{point =(hillpoint h), owner = Me}, direction = South},
-                           Order{ant = Ant{point =(hillpoint h), owner = Me}, direction = West},
-                           Order{ant = Ant{point =(hillpoint h), owner = Me}, direction = East}] | h <- (hills gs)]
-
+                     Order{ant = Ant{point =(hillpoint h), owner = Me}, direction = South},
+                     Order{ant = Ant{point =(hillpoint h), owner = Me}, direction = West},
+                     Order{ant = Ant{point =(hillpoint h), owner = Me}, direction = East}] | h <- (hills gs)]
       unoccupyHillsOrders = mapMaybe (tryOrder (world gs)) hillOrders
       hill_gt = updateGameTurn (world gs) food_gt unoccupyHillsOrders
 
       --Get final orders that will be returned
       orders = Map.elems $ ordersMade hill_gt
-
 
   -- this shows how to check the remaining time
   elapsedTime <- timeRemaining gs
