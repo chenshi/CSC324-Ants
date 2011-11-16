@@ -12,12 +12,15 @@ module Ants
   , OrdersMade
   , FoodTargets
   , GameTurn (..)
+  , Point
+  , Food
 
     -- Utility functions
   , myAnts -- return list of my Ants
   , enemyAnts -- return list of visible enemy Ants
   , passable
   , unoccupied
+  , unoccupiedFood
   , distance
   , timeRemaining
 
@@ -31,7 +34,7 @@ module Ants
 import Data.Array
 import Data.List (isPrefixOf)
 import Data.Char (digitToInt, toUpper)
-import Data.Maybe (fromJust)
+import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Control.Applicative
@@ -275,27 +278,24 @@ passable w order =
 unoccupied :: World -> GameTurn -> Order -> GameTurn
 unoccupied w gt order =
     let newPoint = move (direction order) (point (ant order))
-        notSentForFood = Map.notMember newPoint (foodTargets gt) && (point (ant order)) `notElem` (Map.elems (foodTargets gt))
-        newOrders = if Map.notMember newPoint (ordersMade gt) && notSentForFood
+        newOrders = if Map.notMember newPoint (ordersMade gt)
                       then Map.insert newPoint order (ordersMade gt)
                       else ordersMade gt
-        newFoodTargets = if notSentForFood
-                           then Map.insert newPoint (point (ant order)) (foodTargets gt)
-                           else foodTargets gt
-    in GameTurn {ordersMade = newOrders, foodTargets = newFoodTargets}
+    in GameTurn {ordersMade = newOrders, foodTargets = foodTargets gt}
 
-unoccupiedFood :: World -> GameTurn ->  Order -> GameTurn
-unoccupiedFood w gt order =
-    let newPoint = move (direction order) (point (ant order))
-        notSentForFood = Map.notMember newPoint (foodTargets gt) && (point (ant order)) `notElem` (Map.elems (foodTargets gt))
-        newOrders = if Map.notMember newPoint (ordersMade gt) && notSentForFood
-                      then Map.insert newPoint order (ordersMade gt)
-                      else ordersMade gt
-        newFoodTargets = if notSentForFood
-                           then Map.insert newPoint (point (ant order)) (foodTargets gt)
-                           else foodTargets gt
-    in GameTurn {ordersMade = newOrders, foodTargets = newFoodTargets}
-
+unoccupiedFood :: World -> GameTurn -> (Food, Maybe Order) -> GameTurn
+unoccupiedFood w gt pointorder =
+    if (not (isNothing (snd pointorder)))
+    then
+        let food_loc = fst pointorder
+            order = fromMaybe Order {ant = Ant{point = (0, 0), owner = Me}, direction = North}  (snd pointorder)
+            notSentForFood = (Map.notMember food_loc (foodTargets gt)) && ((point (ant order)) `notElem` (Map.elems (foodTargets gt)))
+            new_gt = if notSentForFood then unoccupied w gt order else gt
+            newFoodTargets = if notSentForFood
+                               then Map.insert food_loc (point (ant order)) (foodTargets gt)
+                               else foodTargets gt
+        in GameTurn {ordersMade = ordersMade new_gt, foodTargets = newFoodTargets}
+    else gt
 issueOrder :: Order -> IO ()
 issueOrder order = do
   let srow = (show . row . point . ant) order

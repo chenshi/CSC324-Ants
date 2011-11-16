@@ -14,6 +14,10 @@ updateGameTurn :: World -> GameTurn -> [Order] -> GameTurn
 updateGameTurn w gt [] = gt
 updateGameTurn w gt orders = updateGameTurn w (unoccupied w gt (head orders)) (tail orders)
 
+updateGameTurnFood :: World -> GameTurn -> [(Food, Maybe Order)] -> GameTurn
+updateGameTurnFood w gt [] = gt
+updateGameTurnFood w gt pointorders = updateGameTurnFood w (unoccupiedFood w gt (head pointorders)) (tail pointorders)
+
 {- |
  - Implement this function to create orders.
  - It uses the IO Monad so algorithms can call timeRemaining.
@@ -38,7 +42,7 @@ doTurn gp gs = do
 
      -- foodlocations = map (fst . snd) shortetsFoodOrders
      -- unoccupiedOrders = mapMaybe (tryOrder (world gs)) ( shortetsFoodOrders !! 2)
-      food_gt = updateGameTurn (world gs) (GameTurn {ordersMade = Map.empty, foodTargets = Map.empty})  (mapMaybe snd shortetsFoodOrders)
+      food_gt = updateGameTurnFood (world gs) (GameTurn {ordersMade = Map.empty, foodTargets = Map.empty}) shortetsFoodOrders
 
       --Exploring the map
 
