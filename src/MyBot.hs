@@ -40,8 +40,6 @@ doTurn gp gs = do
                                    )
                                  ) | food_loc <- food gs, myant <- myAnts (ants gs)])
 
-     -- foodlocations = map (fst . snd) shortetsFoodOrders
-     -- unoccupiedOrders = mapMaybe (tryOrder (world gs)) ( shortetsFoodOrders !! 2)
       food_gt = updateGameTurnFood (world gs) (GameTurn {ordersMade = Map.empty, foodTargets = Map.empty}) shortetsFoodOrders
 
       --Exploring the map
@@ -50,7 +48,7 @@ doTurn gp gs = do
       hillOrders = [[Order{ant = Ant{point =(hillpoint h), owner = Me}, direction = North},
                      Order{ant = Ant{point =(hillpoint h), owner = Me}, direction = South},
                      Order{ant = Ant{point =(hillpoint h), owner = Me}, direction = West},
-                     Order{ant = Ant{point =(hillpoint h), owner = Me}, direction = East}] | h <- (hills gs)]
+                     Order{ant = Ant{point =(hillpoint h), owner = Me}, direction = East}] | h <- (hills gs), (hillpoint h) `elem` (map point (myAnts (ants gs)))]
       unoccupyHillsOrders = mapMaybe (tryOrder (world gs)) hillOrders
       hill_gt = updateGameTurn (world gs) food_gt unoccupyHillsOrders
 
